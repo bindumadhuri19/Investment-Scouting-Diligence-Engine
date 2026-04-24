@@ -59,13 +59,27 @@ def run_analysis(ticker: str) -> dict:
         tmp_dir = os.path.join(base_dir, ".tmp")
         os.makedirs(tmp_dir, exist_ok=True)
         
+        # Prepare environment variables (include Streamlit secrets for subprocess)
+        env = os.environ.copy()
+        
+        # On Streamlit Cloud, inject secrets into subprocess environment
+        if hasattr(st, 'secrets'):
+            try:
+                if "ANTHROPIC_API_KEY" in st.secrets:
+                    env["ANTHROPIC_API_KEY"] = st.secrets["ANTHROPIC_API_KEY"]
+                if "NEWSAPI_KEY" in st.secrets:
+                    env["NEWSAPI_KEY"] = st.secrets["NEWSAPI_KEY"]
+            except Exception:
+                pass  # Secrets not available, will use .env fallback
+        
         # Call analyze.py from the correct working directory
         result = subprocess.run(
             [sys.executable, "analyze.py", ticker],
             capture_output=True,
             text=True,
             timeout=60,
-            cwd=base_dir  # CRITICAL: Run from project root so analyze.py finds tools/
+            cwd=base_dir,  # CRITICAL: Run from project root so analyze.py finds tools/
+            env=env  # Pass environment with API keys
         )
         
         return {
