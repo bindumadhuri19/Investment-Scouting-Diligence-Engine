@@ -51,11 +51,21 @@ st.markdown("""
 def run_analysis(ticker: str) -> dict:
     """Run the analysis pipeline for a ticker."""
     try:
+        # Get the directory where app.py is located
+        import os
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Ensure .tmp directory exists
+        tmp_dir = os.path.join(base_dir, ".tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
+        
+        # Call analyze.py from the correct working directory
         result = subprocess.run(
             [sys.executable, "analyze.py", ticker],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
+            cwd=base_dir  # CRITICAL: Run from project root so analyze.py finds tools/
         )
         
         return {
@@ -92,6 +102,9 @@ def load_analysis_files(ticker: str) -> dict:
     }
     
     data = {}
+    files_loaded = []
+    files_missing = []
+    
     for key, filepath in files.items():
         path = Path(filepath)
         try:
@@ -99,11 +112,21 @@ def load_analysis_files(ticker: str) -> dict:
                 with open(path, 'r', encoding='utf-8') as f:
                     content = json.load(f)
                     data[key] = content if content else None
+                    files_loaded.append(f"{key}.json")
             else:
                 data[key] = None
+                files_missing.append(f"{key}.json")
         except (json.JSONDecodeError, IOError) as e:
             st.warning(f"⚠️ Error reading {ticker}_{key}.json: {str(e)}")
             data[key] = None
+            files_missing.append(f"{key}.json (error)")
+    
+    # Debug info (show only if there are issues)
+    if files_missing and len(files_loaded) < len(files):
+        with st.expander("🔍 Debug: File Loading Status"):
+            st.text(f"Looking in: {tmp_dir}")
+            st.text(f"Loaded: {', '.join(files_loaded) if files_loaded else 'None'}")
+            st.text(f"Missing: {', '.join(files_missing) if files_missing else 'None'}")
     
     return data
 
