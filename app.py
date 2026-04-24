@@ -79,20 +79,30 @@ def run_analysis(ticker: str) -> dict:
 
 def load_analysis_files(ticker: str) -> dict:
     """Load all analysis JSON files."""
+    # Use absolute path for better compatibility
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    tmp_dir = os.path.join(base_dir, ".tmp")
+    
     files = {
-        "fundamentals": f".tmp/{ticker}_fundamentals.json",
-        "analysis": f".tmp/{ticker}_analysis.json",
-        "news": f".tmp/{ticker}_news.json",
-        "synthesis": f".tmp/{ticker}_synthesis.json"
+        "fundamentals": os.path.join(tmp_dir, f"{ticker}_fundamentals.json"),
+        "analysis": os.path.join(tmp_dir, f"{ticker}_analysis.json"),
+        "news": os.path.join(tmp_dir, f"{ticker}_news.json"),
+        "synthesis": os.path.join(tmp_dir, f"{ticker}_synthesis.json")
     }
     
     data = {}
     for key, filepath in files.items():
         path = Path(filepath)
-        if path.exists():
-            with open(path, 'r') as f:
-                data[key] = json.load(f)
-        else:
+        try:
+            if path.exists() and path.stat().st_size > 0:  # Check if file exists and not empty
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = json.load(f)
+                    data[key] = content if content else None
+            else:
+                data[key] = None
+        except (json.JSONDecodeError, IOError) as e:
+            st.warning(f"⚠️ Error reading {ticker}_{key}.json: {str(e)}")
             data[key] = None
     
     return data
@@ -567,6 +577,10 @@ def main():
                 st.success(f"✅ Analysis complete for **{ticker}** in {elapsed:.1f} seconds!")
                 st.session_state.last_ticker = ticker
                 st.session_state.last_analysis_time = datetime.now()
+                
+                # Wait a moment for files to be written
+                import time as time_module
+                time_module.sleep(1)
                 
                 # Show what was done
                 with st.expander("📋 Analysis Pipeline Executed"):
