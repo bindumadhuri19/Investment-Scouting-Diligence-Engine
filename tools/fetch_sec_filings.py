@@ -92,9 +92,37 @@ def create_error_response(ticker: str, error_msg: str) -> dict:
 
 def extract_filing_date(html: str) -> str:
     """Extract most recent filing date from EDGAR HTML."""
-    # Look for date pattern like 2024-01-31
-    match = re.search(r'(\d{4})-(\d{2})-(\d{2})', html)
-    return match.group(0) if match else None
+    # Look for all date patterns like 2024-01-31
+    matches = re.findall(r'(\d{4})-(\d{2})-(\d{2})', html)
+    
+    # Validate and find the most recent valid date
+    current_year = datetime.now().year
+    valid_dates = []
+    
+    for match in matches:
+        year, month, day = int(match[0]), int(match[1]), int(match[2])
+        
+        # Skip if date is invalid or in the future
+        if year > current_year or year < 2000:
+            continue
+        if month < 1 or month > 12:
+            continue
+        if day < 1 or day > 31:
+            continue
+        
+        # Try to create a datetime to validate the date
+        try:
+            date_obj = datetime(year, month, day)
+            valid_dates.append((date_obj, f"{year:04d}-{month:02d}-{day:02d}"))
+        except ValueError:
+            continue  # Invalid date like Feb 30
+    
+    # Return the most recent valid date
+    if valid_dates:
+        valid_dates.sort(reverse=True)
+        return valid_dates[0][1]
+    
+    return None
 
 
 def extract_company_name(html: str) -> str:
