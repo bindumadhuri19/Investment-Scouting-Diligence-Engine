@@ -246,25 +246,43 @@ def create_fallback_synthesis(ticker: str, data: dict, output_dir: str) -> dict:
     # Rule-based recommendation
     zscore = analysis.get('altman_zscore')
     zscore_zone = analysis.get('zscore_zone', 'yellow')
+    debt_ratio = analysis.get('debt_to_equity')
     sentiment_score = sentiment.get('sentiment_score', 50)
     risk_flags = analysis.get('risk_flags', [])
     
+    # SELL conditions
     if zscore and zscore < 1.8:
         recommendation = "SELL"
-        confidence = 7
-        reasoning = "High bankruptcy risk based on Altman Z-Score in distress zone."
-    elif sentiment_score and sentiment_score < 40:
+        confidence = 8
+        reasoning = "High bankruptcy risk based on Altman Z-Score in distress zone (< 1.8)."
+    elif sentiment_score and sentiment_score < 35:
         recommendation = "SELL"
         confidence = 6
-        reasoning = "Negative market sentiment and media coverage indicate significant concerns."
-    elif zscore and zscore > 3.0 and sentiment_score > 60:
+        reasoning = "Strongly negative market sentiment and media coverage indicate significant concerns."
+    elif len(risk_flags) >= 5:
+        recommendation = "SELL"
+        confidence = 7
+        reasoning = f"Multiple red flags detected ({len(risk_flags)} issues) indicating elevated risk."
+    
+    # BUY conditions (more balanced)
+    elif zscore and zscore > 3.0 and sentiment_score >= 50:
+        recommendation = "BUY"
+        confidence = 8 if sentiment_score > 60 else 7
+        reasoning = f"Strong financial health (Z-Score: {zscore:.1f}) with {'positive' if sentiment_score > 60 else 'neutral'} market sentiment."
+    elif zscore and zscore > 2.5 and debt_ratio and debt_ratio < 0.5 and sentiment_score >= 55:
         recommendation = "BUY"
         confidence = 7
-        reasoning = "Strong financial health (Z-Score > 3.0) combined with positive market sentiment."
-    else:
+        reasoning = f"Solid financials (Z-Score: {zscore:.1f}, low debt) with favorable sentiment."
+    
+    # HOLD conditions
+    elif zscore and 1.8 <= zscore <= 3.0:
         recommendation = "HOLD"
         confidence = 5
-        reasoning = "Mixed signals - requires further analysis before making investment decision."
+        reasoning = f"Gray zone Z-Score ({zscore:.1f}) requires careful monitoring before investment."
+    else:
+        recommendation = "HOLD"
+        confidence = 4
+        reasoning = "Mixed signals - limited data available for confident recommendation."
     
     synthesis = {
         "ticker": ticker.upper(),
