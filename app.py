@@ -342,49 +342,68 @@ def display_financial_metrics(data: dict):
         zscore = analysis.get("altman_zscore")
         zone = analysis.get("zscore_zone", "N/A")
         
-        if zscore:
-            color_class = get_zone_color(zone)
-            st.markdown(f"<p class='big-font {color_class}'>{zscore:.2f}</p>", unsafe_allow_html=True)
-            
-            # Zone interpretation
-            if zone == "green":
-                st.success("✅ Safe Zone - Low bankruptcy risk")
-            elif zone == "yellow":
-                st.warning("⚠️ Gray Zone - Moderate risk")
+        # Check if zscore is valid (not None, NaN, or Infinity)
+        try:
+            import math
+            if zscore is not None and not math.isnan(zscore) and not math.isinf(zscore):
+                color_class = get_zone_color(zone)
+                st.markdown(f"<p class='big-font {color_class}'>{zscore:.2f}</p>", unsafe_allow_html=True)
+                
+                # Zone interpretation
+                if zone == "green":
+                    st.success("✅ Safe Zone - Low bankruptcy risk")
+                elif zone == "yellow":
+                    st.warning("⚠️ Gray Zone - Moderate risk")
+                else:
+                    st.error("🚨 Distress Zone - High bankruptcy risk")
+                
+                # Z-Score components
+                with st.expander("View Z-Score Components"):
+                    components = analysis.get("components", {})
+                    if components:
+                        for key, value in components.items():
+                            if isinstance(value, (int, float)) and not math.isnan(value) and not math.isinf(value):
+                                st.text(f"{key}: {value:.4f}")
+                    else:
+                        st.text("Components not available")
             else:
-                st.error("🚨 Distress Zone - High bankruptcy risk")
-            
-            # Z-Score components
-            with st.expander("View Z-Score Components"):
-                components = analysis.get("components", {})
-                for key, value in components.items():
-                    st.text(f"{key}: {value:.4f}")
-        else:
-            st.info("Z-Score calculation unavailable")
+                st.info("Z-Score calculation unavailable (invalid data)")
+        except Exception as e:
+            st.info(f"Z-Score calculation unavailable: {str(e)}")
     
     with col2:
         st.subheader("📊 Debt Analysis")
         debt_ratio = analysis.get("debt_to_equity")
         debt_zone = analysis.get("debt_zone", "N/A")
         
-        if debt_ratio:
-            color_class = get_zone_color(debt_zone)
-            st.markdown(f"<p class='big-font {color_class}'>Debt/Equity: {debt_ratio:.2f}</p>", unsafe_allow_html=True)
-            
-            current_ratio = analysis.get("current_ratio", 0)
-            liquidity_zone = analysis.get("liquidity_zone", "N/A")
-            
-            st.text(f"Current Ratio: {current_ratio:.2f}")
-            st.text(f"Liquidity: {liquidity_zone}")
-            
-            # Risk flags
-            risk_flags = analysis.get("risk_flags", [])
-            if risk_flags:
-                with st.expander("⚠️ Risk Flags"):
-                    for flag in risk_flags:
-                        st.warning(flag)
-        else:
-            st.info("Debt analysis unavailable")
+        # Check if debt_ratio is valid (not None, NaN, or Infinity)
+        try:
+            import math
+            if debt_ratio is not None and not math.isnan(debt_ratio) and not math.isinf(debt_ratio) and debt_ratio >= 0:
+                color_class = get_zone_color(debt_zone)
+                st.markdown(f"<p class='big-font {color_class}'>Debt/Equity: {debt_ratio:.2f}</p>", unsafe_allow_html=True)
+                
+                current_ratio = analysis.get("current_ratio", 0)
+                liquidity_zone = analysis.get("liquidity_zone", "N/A")
+                
+                # Safe formatting for current_ratio
+                if current_ratio is not None and not math.isnan(current_ratio) and not math.isinf(current_ratio):
+                    st.text(f"Current Ratio: {current_ratio:.2f}")
+                else:
+                    st.text(f"Current Ratio: N/A")
+                    
+                st.text(f"Liquidity: {liquidity_zone}")
+                
+                # Risk flags
+                risk_flags = analysis.get("risk_flags", [])
+                if risk_flags:
+                    with st.expander("⚠️ Risk Flags"):
+                        for flag in risk_flags:
+                            st.warning(flag)
+            else:
+                st.info("Debt analysis unavailable (invalid data)")
+        except Exception as e:
+            st.info(f"Debt analysis unavailable: {str(e)}")
 
 
 def display_sentiment_analysis(data: dict):
