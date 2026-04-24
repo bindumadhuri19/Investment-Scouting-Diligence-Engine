@@ -135,12 +135,19 @@ def load_analysis_files(ticker: str) -> dict:
             data[key] = None
             files_missing.append(f"{key}.json (error)")
     
-    # Debug info (show only if there are issues)
-    if files_missing and len(files_loaded) < len(files):
-        with st.expander("🔍 Debug: File Loading Status"):
-            st.text(f"Looking in: {tmp_dir}")
-            st.text(f"Loaded: {', '.join(files_loaded) if files_loaded else 'None'}")
-            st.text(f"Missing: {', '.join(files_missing) if files_missing else 'None'}")
+    # Debug info - ALWAYS show on Streamlit Cloud to diagnose issues
+    with st.expander("🔍 Debug: File Loading Status", expanded=bool(files_missing)):
+        st.text(f"Base directory: {base_dir}")
+        st.text(f"Looking in: {tmp_dir}")
+        st.text(f"Tmp dir exists: {os.path.exists(tmp_dir)}")
+        st.text(f"Files loaded ({len(files_loaded)}): {', '.join(files_loaded) if files_loaded else 'None'}")
+        st.text(f"Files missing ({len(files_missing)}): {', '.join(files_missing) if files_missing else 'None'}")
+        
+        # Show actual file paths for debugging
+        st.text("\nFull paths checked:")
+        for key, filepath in files.items():
+            exists = os.path.exists(filepath)
+            st.text(f"  [{' OK ' if exists else 'MISS'}] {filepath}")
     
     return data
 
